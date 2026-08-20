@@ -13,20 +13,13 @@ function Test-Winget {
     }
 }
 
-function Get-DownloadDirectory {
-    $directory = Join-Path ([Environment]::GetFolderPath('Desktop')) 'app'
-    if (-not (Test-Path -LiteralPath $directory)) {
-        New-Item -ItemType Directory -Path $directory -Force | Out-Null
-    }
-    return $directory
-}
-
 function Show-AppList {
     Write-Host ''
-    Write-Host 'İndirilebilir uygulamalar:' -ForegroundColor Cyan
+    Write-Host 'Yüklenebilir uygulamalar:' -ForegroundColor Cyan
     for ($index = 0; $index -lt $Applications.Count; $index++) {
         $number = $index + 1
-        Write-Host ("  {0}) {1} [{2}]" -f $number, $Applications[$index].Name, $Applications[$index].Id)
+        $source = if ($Applications[$index].Source) { $Applications[$index].Source } else { 'winget' }
+        Write-Host ("  {0}) {1} [{2}; kaynak: {3}]" -f $number, $Applications[$index].Name, $Applications[$index].Id, $source)
     }
     Write-Host ''
 }
@@ -57,8 +50,7 @@ function Read-AppSelection {
     }
 }
 
-function Download-Applications {
-    $directory = Get-DownloadDirectory
+function Install-Applications {
     Show-AppList
     $selection = Read-AppSelection
     if ($selection.Count -eq 0) {
@@ -66,16 +58,20 @@ function Download-Applications {
     }
 
     foreach ($application in $selection) {
-        Write-Host ("`nİndiriliyor: {0} ({1})" -f $application.Name, $application.Id) -ForegroundColor Cyan
-        & winget download --id $application.Id --exact --accept-source-agreements --download-directory $directory
+        $source = if ($application.Source) { $application.Source } else { 'winget' }
+        Write-Host ("`nYükleniyor: {0} ({1}; kaynak: {2})" -f $application.Name, $application.Id, $source) -ForegroundColor Cyan
+        if ($source -eq 'msstore') {
+            & winget install --id $application.Id --source msstore --accept-source-agreements
+        } else {
+            & winget install $application.Id --exact --accept-source-agreements
+        }
         if ($LASTEXITCODE -ne 0) {
-            Write-Host ("BAŞARISIZ: {0}. Paket kimliği Winget kaynağında bulunamadı veya indirme başarısız oldu." -f $application.Name) -ForegroundColor Red
+            Write-Host ("BAŞARISIZ: {0}. Paket kimliği bulunamadı veya yükleme başarısız oldu." -f $application.Name) -ForegroundColor Red
         } else {
             Write-Host ("Tamamlandı: {0}" -f $application.Name) -ForegroundColor Green
         }
     }
-    Write-Host "`nDosyalar: $directory"
-    Read-Host 'Ana menüye dönmek için Enter'
+    Read-Host "`nAna menüye dönmek için Enter"
 }
 
 function Get-Hashes {
@@ -98,11 +94,11 @@ Test-Winget
 while ($true) {
     Clear-Host
     Write-Host 'WinTool PS' -ForegroundColor Cyan
-    Write-Host '1) Uygulama indir'
+    Write-Host '1) Uygulama yükle'
     Write-Host '2) Hash al'
     Write-Host '0) Çıkış'
     switch ((Read-Host 'Seçiminiz').Trim()) {
-        '1' { Download-Applications }
+        '1' { Install-Applications }
         '2' { Get-Hashes }
         '0' { return }
         default { Write-Host 'Geçersiz seçim.' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }

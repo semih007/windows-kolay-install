@@ -18,19 +18,32 @@ wintool-ps/
 └── GOREV_LISTESI.md
 ```
 
-## 3. Statik Winget Uygulama Listesi
+## 3. Uygulama Paket Listesi
 
-`Config.ps1` içindeki liste, görünen adları Winget paket kimlikleriyle eşler:
+`Config.ps1` içindeki liste, uygulama adlarını kaynaklara göre paket adları ve
+kimlikleriyle eşler.
 
-| Görünen ad | Winget ID |
-|---|---|
-| 7-Zip | `7zip.7zip` |
-| Google Chrome | `Google.Chrome` |
-| Brave | `Brave.Brave` |
-| Revo Uninstaller | `RevoUninstaller.RevoUninstaller` |
-| LocalSend | `LocalSend.LocalSend` |
+### Winget paketleri
+
+| Uygulama adı                     | Paket adı              |
+|----------------------------------------------------------------------------|
+| 7-Zip                            | `7zip.7zip` |
+| Google Chrome                    | `Google.Chrome`  |
+| Brave (Winget)                   | `Brave.Brave`   |
+| Revo Uninstaller (Winget)        | `RevoUninstaller.RevoUninstaller` |
+| LocalSend                        | `LocalSend.LocalSend` |
+| Ventoy                           | `Ventoy.Ventoy` |
 | Display Driver Uninstaller (DDU) | `Wagnardsoft.DisplayDriverUninstaller` |
-| Proton Pass | `ProtonTechnologies.ProtonPass` |
-| Ente Auth | `Ente.Auth` |
+| CPU-Z                            | `CPUID.CPU-Z` |
+| Proton Pass                      | `Proton.ProtonPass` |
+| Google Quick Share               | `Google.QuickShare` |
+| Ente Auth                        | `ente-io.auth-desktop` |
+
+### Microsoft Store paketleri
+
+| Uygulama adı                       | Paket ID |
+|------------------------------------|------------------|
+| Brave (Microsoft Store)            | `XP8C9QZMS2PC1T` |
+| Revo Uninstaller (Microsoft Store) | `XPFFVD4CMXN8VN` |
 
 Liste dinamik değildir; yeni uygulama eklemek için yalnızca `Config.ps1` güncellenir.
