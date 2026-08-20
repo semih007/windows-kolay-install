@@ -16,3 +16,21 @@ wintool-ps/
 ├── HAKKINDA.md
 ├── TEKNIK_MIMARI.md
 └── GOREV_LISTESI.md
+```
+
+## 3. Statik Winget Uygulama Listesi
+
+`Config.ps1` içindeki liste, görünen adları Winget paket kimlikleriyle eşler:
+
+| Görünen ad | Winget ID |
+|---|---|
+| 7-Zip | `7zip.7zip` |
+| Google Chrome | `Google.Chrome` |
+| Brave | `Brave.Brave` |
+| Revo Uninstaller | `RevoUninstaller.RevoUninstaller` |
+| LocalSend | `LocalSend.LocalSend` |
+| Display Driver Uninstaller (DDU) | `Wagnardsoft.DisplayDriverUninstaller` |
+| Proton Pass | `ProtonTechnologies.ProtonPass` |
+| Ente Auth | `Ente.Auth` |
+
+Liste dinamik değildir; yeni uygulama eklemek için yalnızca `Config.ps1` güncellenir.

@@ -7,6 +7,10 @@ Bu proje, Chris Titus Tech'in "WinUtil" aracına benzer mantıkla çalışan, Wi
 - **Uygulama İndirici:** Statik olarak tanımlanmış yazılımların kurulum dosyalarını `winget download` komutuyla Masaüstü'ndeki `app` klasörüne çeker. Tekli veya çoklu (virgülle ayrılmış) seçimi destekler.
 - **Hash Hesaplayıcı:** Kullanıcının girdiği bir dosya yolunu alarak `Get-FileHash` ile MD5, SHA1 ve SHA256 değerlerini hesaplayıp ekrana formatlı olarak basar.
 
+## Çalıştırma
+
+PowerShell ile proje klasöründe `.\WinTool.ps1` komutunu çalıştırın. Uygulama listesi `Config.ps1` içinde statik olarak tutulur; seçim `1,3,4` biçiminde çoklu yapılabilir. Başarısız Winget indirmeleri ekranda açıkça raporlanır.
+
 ## 3. Temel Kurallar ve Kısıtlamalar
 - Sadece saf **PowerShell 5.1+ / PowerShell 7+** kullanılacaktır.
 - Harici dil/kütüphane bağımlılığı OLMAYACAKTIR.
