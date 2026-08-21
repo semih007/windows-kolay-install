@@ -2,8 +2,7 @@
 $logPath = if ($env:WINTOOL_LOG_PATH) {
     $env:WINTOOL_LOG_PATH
 } else {
-    $logStamp = Get-Date -Format 'dd-MM-yyyy-HH-mm-ss'
-    Join-Path (Split-Path -Parent $PSScriptRoot) "WinTool-$logStamp.txt"
+    Join-Path (Split-Path -Parent $PSScriptRoot) 'WinTool.txt'
 }
 
 function Write-SessionLog {
@@ -91,15 +90,21 @@ function Get-InstallerSizeBytes {
     )
 
     $showOutput = if ($Source -eq 'msstore') {
-        & winget show --id $Application.Id --source msstore --exact --accept-source-agreements 2>$null
+        & winget show --id $Application.Id --source msstore --exact --accept-source-agreements --disable-interactivity 2>$null
     } else {
-        & winget show --id $Application.Id --exact --accept-source-agreements 2>$null
+        & winget show --id $Application.Id --exact --accept-source-agreements --disable-interactivity 2>$null
     }
 
-    $sizePattern = '(?i)(Installer Size|Yükleyici Boyutu)\s*:\s*([\d.,]+)\s*(KB|MB|GB)'
+    $sizePattern = '(?i)(Installer Size|Download Size|Yükleyici Boyutu|İndirme Boyutu)\s*:\s*([\d.,]+)\s*(KB|MB|GB)'
     foreach ($line in $showOutput) {
         if ($line -match $sizePattern) {
-            $size = [double]::Parse($matches[2].Replace(',', '.'), [Globalization.CultureInfo]::InvariantCulture)
+            $sizeText = $matches[2]
+            if ($sizeText.Contains(',') -and $sizeText.Contains('.')) {
+                $sizeText = $sizeText.Replace('.', '').Replace(',', '.')
+            } else {
+                $sizeText = $sizeText.Replace(',', '.')
+            }
+            $size = [double]::Parse($sizeText, [Globalization.CultureInfo]::InvariantCulture)
             $multiplier = switch ($matches[3].ToUpperInvariant()) {
                 'KB' { 1KB }
                 'MB' { 1MB }
@@ -112,6 +117,23 @@ function Get-InstallerSizeBytes {
     return 0
 }
 
+function Get-ApplicationSizeReport {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Applications
+    )
+
+    $sizes = foreach ($application in $Applications) {
+        $source = if ($application.Source) { $application.Source } else { 'winget' }
+        $bytes = Get-InstallerSizeBytes -Application $application -Source $source
+        if ($bytes -eq 0) {
+            Write-SessionLog "$($application.Name) için winget paket boyutu alınamadı; toplam ilerleme yaklaşık olabilir."
+        }
+        [long]$bytes
+    }
+    return @($sizes)
+}
+
 function Show-DownloadProgress {
     param(
         [Parameter(Mandatory = $true)]
@@ -119,22 +141,79 @@ function Show-DownloadProgress {
         [Parameter(Mandatory = $true)]
         [long]$TotalBytes,
         [Parameter(Mandatory = $true)]
+        [string]$ApplicationName,
+        [Parameter(Mandatory = $true)]
+        [long]$ApplicationBytes,
+        [Parameter(Mandatory = $true)]
+        [long]$ApplicationTotalBytes,
+        [Parameter(Mandatory = $true)]
         [int]$CompletedCount,
         [Parameter(Mandatory = $true)]
         [int]$TotalCount
     )
 
-    $percent = if ($TotalBytes -gt 0) {
+    $totalPercent = if ($TotalBytes -gt 0) {
         [math]::Min(100, [math]::Floor(($DownloadedBytes / $TotalBytes) * 100))
     } else {
         [math]::Floor(($CompletedCount / $TotalCount) * 100)
     }
+    $applicationPercent = if ($ApplicationTotalBytes -gt 0) {
+        [math]::Min(100, [math]::Floor(($ApplicationBytes / $ApplicationTotalBytes) * 100))
+    } else {
+        0
+    }
     $downloadedMB = [math]::Round($DownloadedBytes / 1MB, 1)
     $totalMB = [math]::Round($TotalBytes / 1MB, 1)
-    $barLength = 20
-    $filledLength = [math]::Floor(($percent / 100) * $barLength)
-    $bar = ('█' * $filledLength) + ('░' * ($barLength - $filledLength))
-    Write-Host "`rToplam ilerleme: [$bar] $percent% $CompletedCount/$TotalCount indirme tamamlandı ($downloadedMB / $totalMB MB)" -NoNewline
+    $totalLabel = if ($TotalBytes -gt 0) { "$totalMB MB" } else { 'boyut bilinmiyor' }
+    $applicationMB = [math]::Round($ApplicationBytes / 1MB, 1)
+    $applicationTotalLabel = if ($ApplicationTotalBytes -gt 0) {
+        "$([math]::Round($ApplicationTotalBytes / 1MB, 1)) MB"
+    } else {
+        'boyut bilinmiyor'
+    }
+    Write-Progress -Id 1 -Activity 'Toplam indirme' -Status "$CompletedCount/$TotalCount uygulama, $downloadedMB / $totalLabel" -PercentComplete $totalPercent
+    Write-Progress -Id 2 -Activity "İndiriliyor: $ApplicationName" -Status "$applicationMB / $applicationTotalLabel" -PercentComplete $applicationPercent
+}
+
+function Get-DirectoryFileBytes {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $sum = (Get-ChildItem -LiteralPath $Path -File -ErrorAction SilentlyContinue |
+        Measure-Object -Property Length -Sum).Sum
+    if ($sum) {
+        return [long]$sum
+    }
+    return [long]0
+}
+
+function Start-WingetDownload {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Application,
+        [Parameter(Mandatory = $true)]
+        [string]$DownloadPath,
+        [Parameter(Mandatory = $true)]
+        [string]$Source
+    )
+
+    $outputPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-" + [guid]::NewGuid().ToString() + '.out')
+    $errorPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-" + [guid]::NewGuid().ToString() + '.err')
+    $quotedDownloadPath = '"' + $DownloadPath.Replace('"', '\"') + '"'
+    $arguments = if ($Source -eq 'msstore') {
+        @('download', '--id', $Application.Id, '--source', 'msstore', '--skip-license', '--download-directory', $quotedDownloadPath)
+    } else {
+        @('download', '--id', $Application.Id, '--exact', '--download-directory', $quotedDownloadPath, '--accept-source-agreements', '--accept-package-agreements')
+    }
+    $process = Start-Process -FilePath 'winget' -ArgumentList $arguments `
+        -RedirectStandardOutput $outputPath -RedirectStandardError $errorPath -PassThru
+    return [pscustomobject]@{
+        Process = $process
+        OutputPath = $outputPath
+        ErrorPath = $errorPath
+    }
 }
 
 function Download-Applications {
@@ -159,43 +238,53 @@ function Download-Applications {
     if (-not $initialBytes) {
         $initialBytes = 0
     }
-    $installerSizes = @($selection | ForEach-Object {
-        $source = if ($_.Source) { $_.Source } else { 'winget' }
-        Get-InstallerSizeBytes -Application $_ -Source $source
-    })
+    $installerSizes = Get-ApplicationSizeReport -Applications $selection
     $totalBytes = ($installerSizes | Measure-Object -Sum).Sum
-    if (-not $totalBytes) {
+    $hasUnknownSize = @($installerSizes | Where-Object { $_ -le 0 }).Count -gt 0
+    if ($hasUnknownSize -or -not $totalBytes) {
         $totalBytes = 0
     }
     $completedCount = 0
-
-    foreach ($application in $selection) {
+    for ($index = 0; $index -lt $selection.Count; $index++) {
+        $application = $selection[$index]
         $source = if ($application.Source) { $application.Source } else { 'winget' }
-        Write-Host ''
-        if ($source -eq 'msstore') {
-            & winget download --id $application.Id --source msstore --download-directory $downloadPath --accept-source-agreements --accept-package-agreements 2>&1 |
-                ForEach-Object {
-                    $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
-                        Measure-Object -Property Length -Sum).Sum
-                    Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
-                }
-        } else {
-            & winget download --id $application.Id --exact --download-directory $downloadPath --accept-source-agreements --accept-package-agreements 2>&1 |
-                ForEach-Object {
-                    $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
-                        Measure-Object -Property Length -Sum).Sum
-                    Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
-                }
+        $applicationTotalBytes = [long]$installerSizes[$index]
+        $applicationStartBytes = Get-DirectoryFileBytes -Path $downloadPath
+        $download = Start-WingetDownload -Application $application -DownloadPath $downloadPath -Source $source
+        while (-not $download.Process.HasExited) {
+            $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
+            $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
+            $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
+            Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+            Start-Sleep -Milliseconds 250
         }
-        if ($LASTEXITCODE -ne 0) {
+        $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
+        $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
+        $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
+        if ($download.Process.ExitCode -ne 0) {
             Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
+            Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $($download.Process.ExitCode))."
         } else {
             $completedCount++
-            $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
-                Measure-Object -Property Length -Sum).Sum
-            Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+            Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+            Write-SessionLog "$($application.Name) indirildi."
         }
+        Remove-Item -LiteralPath $download.OutputPath, $download.ErrorPath -Force -ErrorAction SilentlyContinue
     }
+    Write-Progress -Id 2 -Activity 'İndirme tamamlandı' -Completed
+    Write-Progress -Id 1 -Activity 'Toplam indirme' -Completed
+    $finalBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
+        Measure-Object -Property Length -Sum).Sum
+    if (-not $finalBytes) {
+        $finalBytes = 0
+    }
+    $downloadedFinalBytes = [math]::Max(0, $finalBytes - $initialBytes)
+    Write-Host "`nToplam indirilen boyut: $([math]::Round($downloadedFinalBytes / 1MB, 1)) MB"
+    Write-SessionLog "İndirme tamamlandı. Toplam indirilen boyut: $([math]::Round($downloadedFinalBytes / 1MB, 1)) MB."
     Write-Host ''
     Read-Host "`nAna menüye dönmek için Enter"
 }

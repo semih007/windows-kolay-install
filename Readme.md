@@ -13,7 +13,8 @@ PowerShell ile proje klasöründe `.\src\WinTool.ps1` komutunu çalıştırın. 
 
 Programı terminalden çalıştırmak yerine proje klasöründeki `WinTool.cmd` dosyasına çift tıklayarak başlatabilirsiniz. Bu dosya, `src` klasöründeki `WinTool.ps1` betiğini otomatik olarak çalıştırır.
 
-Her çalıştırmada proje kökünde tarih-saat içeren yeni bir metin dosyası oluşturulur. Örneğin: `WinTool-21-08-2026-13-01-08.txt`. Saniye bilgisi aynı dakika içindeki çalıştırmaların da birbirinin üzerine yazılmasını engeller.
+Tüm çalıştırmalar proje kökündeki `WinTool.txt` dosyasına tarih damgasıyla eklenir; her çalıştırmada yeni bir log dosyası oluşturulmaz.
+Microsoft Store kaynaklı uygulamalar (`msstore`) de `winget download --source msstore --skip-license` komutuyla indirilebilir.
 
 ## 3. Temel Kurallar ve Kısıtlamalar
 - Sadece saf **PowerShell 5.1+ / PowerShell 7+** kullanılacaktır.
