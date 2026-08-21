@@ -9,9 +9,11 @@ Bu proje, Chris Titus Tech'in "WinUtil" aracına benzer mantıkla çalışan, Wi
 
 ## Çalıştırma
 
-PowerShell ile proje klasöründe `.\WinTool.ps1` komutunu çalıştırın. Uygulama listesi `Config.ps1` içinde statik olarak tutulur; seçim `1,3,4` biçiminde çoklu yapılabilir. Başarısız Winget indirmeleri ekranda açıkça raporlanır.
+PowerShell ile proje klasöründe `.\src\WinTool.ps1` komutunu çalıştırın. Uygulama listesi `src\Config.ps1` içinde statik olarak tutulur; seçim `1,3,4` biçiminde çoklu yapılabilir. Başarısız Winget indirmeleri ekranda açıkça raporlanır.
 
-Programı terminalden çalıştırmak yerine proje klasöründeki `WinTool.cmd` dosyasına çift tıklayarak başlatabilirsiniz. Bu dosya, bulunduğu klasördeki `WinTool.ps1` betiğini otomatik olarak çalıştırır.
+Programı terminalden çalıştırmak yerine proje klasöründeki `WinTool.cmd` dosyasına çift tıklayarak başlatabilirsiniz. Bu dosya, `src` klasöründeki `WinTool.ps1` betiğini otomatik olarak çalıştırır.
+
+Her çalıştırmada proje kökünde tarih-saat içeren yeni bir metin dosyası oluşturulur. Örneğin: `WinTool-21-08-2026-13-01-08.txt`. Saniye bilgisi aynı dakika içindeki çalıştırmaların da birbirinin üzerine yazılmasını engeller.
 
 ## 3. Temel Kurallar ve Kısıtlamalar
 - Sadece saf **PowerShell 5.1+ / PowerShell 7+** kullanılacaktır.

@@ -1,4 +1,20 @@
 ﻿$ErrorActionPreference = 'Stop'
+$logPath = if ($env:WINTOOL_LOG_PATH) {
+    $env:WINTOOL_LOG_PATH
+} else {
+    $logStamp = Get-Date -Format 'dd-MM-yyyy-HH-mm-ss'
+    Join-Path (Split-Path -Parent $PSScriptRoot) "WinTool-$logStamp.txt"
+}
+
+function Write-SessionLog {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    Add-Content -LiteralPath $logPath -Value "$timestamp - $Message" -Encoding UTF8
+}
 
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
@@ -11,6 +27,8 @@ if (-not $isAdministrator) {
         -Verb RunAs
     exit
 }
+
+Write-SessionLog 'WinTool baslatildi.'
 
 $configPath = Join-Path $PSScriptRoot 'Config.ps1'
 
@@ -195,6 +213,40 @@ function Get-Hashes {
         [pscustomobject]@{ Algoritma = $hash.Algorithm; Hash = $hash.Hash }
     }
     $hashes | Format-Table -AutoSize
+
+    $compareChoice = (Read-Host 'Hash karşılaştırması yapmak istiyor musunuz? (E/H)').Trim()
+    if ($compareChoice -notin @('E', 'e')) {
+        return
+    }
+
+    Write-Host ''
+    Write-Host 'Karşılaştırılacak algoritmayı seçin:'
+    Write-Host '1) MD5'
+    Write-Host '2) SHA1'
+    Write-Host '3) SHA256'
+    $algorithmChoice = (Read-Host 'Seçiminiz').Trim()
+    $algorithm = switch ($algorithmChoice) {
+        '1' { 'MD5' }
+        '2' { 'SHA1' }
+        '3' { 'SHA256' }
+        default { $null }
+    }
+
+    if (-not $algorithm) {
+        Write-Host 'Geçersiz algoritma seçimi.' -ForegroundColor Yellow
+        Read-Host 'Ana menüye dönmek için Enter'
+        return
+    }
+
+    $expectedHash = (Read-Host "$algorithm hash değerini girin").Trim()
+    $actualHash = ($hashes | Where-Object { $_.Algoritma -eq $algorithm }).Hash
+    if ($actualHash.Equals($expectedHash, [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Host 'Hash değerleri eşleşiyor.' -ForegroundColor Green
+    } else {
+        Write-Host 'Hash değerleri eşleşmiyor.' -ForegroundColor Red
+        Write-Host "Beklenen: $expectedHash"
+        Write-Host "Dosya:     $actualHash"
+    }
     Read-Host 'Ana menüye dönmek için Enter'
 }
 
@@ -204,11 +256,11 @@ while ($true) {
     Write-Host 'WinTool PS' -ForegroundColor Cyan
     Write-Host '1) Uygulama indir'
     Write-Host '2) Hash al'
-    Write-Host '0) Çıkış'
+    Write-Host '3) Çıkış'
     switch ((Read-Host 'Seçiminiz').Trim()) {
         '1' { Download-Applications }
         '2' { Get-Hashes }
-        '0' { return }
+        '3' { Write-SessionLog 'WinTool menuden kapatildi.'; return }
         default { Write-Host 'Geçersiz seçim.' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }
 }

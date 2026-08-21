@@ -11,8 +11,10 @@
 ## 2. Proje Dosya Yapısı
 ```text
 wintool-ps/
-├── WinTool.ps1          # Ana çalıştırılabilir PowerShell betiği
-├── Config.ps1           # Statik uygulama listesi (Winget ID ve İsimler)
+├── WinTool.cmd          # Taşınabilir başlatıcı
+├── src/
+│   ├── WinTool.ps1      # Ana çalıştırılabilir PowerShell betiği
+│   └── Config.ps1       # Statik uygulama listesi (Winget ID ve İsimler)
 ├── HAKKINDA.md
 ├── TEKNIK_MIMARI.md
 └── GOREV_LISTESI.md
@@ -20,7 +22,7 @@ wintool-ps/
 
 ## 3. Uygulama Paket Listesi
 
-`Config.ps1` içindeki liste, uygulama adlarını kaynaklara göre paket adları ve
+`src/Config.ps1` içindeki liste, uygulama adlarını kaynaklara göre paket adları ve
 kimlikleriyle eşler.
 
 ### Winget paketleri
@@ -46,4 +48,4 @@ kimlikleriyle eşler.
 | Brave (Microsoft Store)            | `XP8C9QZMS2PC1T` |
 | Revo Uninstaller (Microsoft Store) | `XPFFVD4CMXN8VN` |
 
-Liste dinamik değildir; yeni uygulama eklemek için yalnızca `Config.ps1` güncellenir.
+Liste dinamik değildir; yeni uygulama eklemek için yalnızca `src/Config.ps1` güncellenir.

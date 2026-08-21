@@ -1,4 +1,4 @@
-[Başlat: WinTool.ps1]
+[Başlat: WinTool.cmd → src/WinTool.ps1]
    │
    ▼
 [Yönetici / Winget Doğrulaması]
