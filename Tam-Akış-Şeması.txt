@@ -9,7 +9,7 @@
    ├──► [1] Uygulama İndir
    │         │
    │         ▼
-   │     [Masaüstü/app Klasörünü Kontrol Et / Oluştur]
+   │     [Masaüstü/App Klasörünü Kontrol Et; Varsa App-gün-ay-yıl Klasörü Oluştur]
    │         │
    │         ▼
    │     [Statik Listeyi Listele & Çoklu Seçim Al (Örn: 1,3,4)]

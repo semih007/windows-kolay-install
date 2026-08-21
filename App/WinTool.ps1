@@ -1,4 +1,17 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
+
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
+$isAdministrator = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $isAdministrator) {
+    $hostExecutable = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }
+    Start-Process -FilePath $hostExecutable `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"") `
+        -Verb RunAs
+    exit
+}
+
 $configPath = Join-Path $PSScriptRoot 'Config.ps1'
 
 if (-not (Test-Path -LiteralPath $configPath)) {
@@ -19,7 +32,8 @@ function Show-AppList {
     for ($index = 0; $index -lt $Applications.Count; $index++) {
         $number = $index + 1
         $source = if ($Applications[$index].Source) { $Applications[$index].Source } else { 'winget' }
-        Write-Host ("  {0}) {1} [{2}; kaynak: {3}]" -f $number, $Applications[$index].Name, $Applications[$index].Id, $source)
+        $sourceLabel = if ($source -eq 'msstore') { 'ms store' } else { $source }
+        Write-Host ("  {0}) {1} ({2})" -f $number, $Applications[$index].Name, $sourceLabel)
     }
     Write-Host ''
 }
@@ -50,27 +64,121 @@ function Read-AppSelection {
     }
 }
 
-function Install-Applications {
+function Get-InstallerSizeBytes {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Application,
+        [Parameter(Mandatory = $true)]
+        [string]$Source
+    )
+
+    $showOutput = if ($Source -eq 'msstore') {
+        & winget show --id $Application.Id --source msstore --exact --accept-source-agreements 2>$null
+    } else {
+        & winget show --id $Application.Id --exact --accept-source-agreements 2>$null
+    }
+
+    $sizePattern = '(?i)(Installer Size|Yükleyici Boyutu)\s*:\s*([\d.,]+)\s*(KB|MB|GB)'
+    foreach ($line in $showOutput) {
+        if ($line -match $sizePattern) {
+            $size = [double]::Parse($matches[2].Replace(',', '.'), [Globalization.CultureInfo]::InvariantCulture)
+            $multiplier = switch ($matches[3].ToUpperInvariant()) {
+                'KB' { 1KB }
+                'MB' { 1MB }
+                'GB' { 1GB }
+            }
+            return [math]::Round($size * $multiplier)
+        }
+    }
+
+    return 0
+}
+
+function Show-DownloadProgress {
+    param(
+        [Parameter(Mandatory = $true)]
+        [long]$DownloadedBytes,
+        [Parameter(Mandatory = $true)]
+        [long]$TotalBytes,
+        [Parameter(Mandatory = $true)]
+        [int]$CompletedCount,
+        [Parameter(Mandatory = $true)]
+        [int]$TotalCount
+    )
+
+    $percent = if ($TotalBytes -gt 0) {
+        [math]::Min(100, [math]::Floor(($DownloadedBytes / $TotalBytes) * 100))
+    } else {
+        [math]::Floor(($CompletedCount / $TotalCount) * 100)
+    }
+    $downloadedMB = [math]::Round($DownloadedBytes / 1MB, 1)
+    $totalMB = [math]::Round($TotalBytes / 1MB, 1)
+    $barLength = 20
+    $filledLength = [math]::Floor(($percent / 100) * $barLength)
+    $bar = ('█' * $filledLength) + ('░' * ($barLength - $filledLength))
+    Write-Host "`rToplam ilerleme: [$bar] $percent% $CompletedCount/$TotalCount indirme tamamlandı ($downloadedMB / $totalMB MB)" -NoNewline
+}
+
+function Download-Applications {
     Show-AppList
     $selection = Read-AppSelection
     if ($selection.Count -eq 0) {
         return
     }
 
+    $desktopPath = [Environment]::GetFolderPath('Desktop')
+    $appPath = Join-Path $desktopPath 'App'
+    if (Test-Path -LiteralPath $appPath -PathType Container) {
+        $dateLabel = Get-Date -Format 'dd-MM-yyyy'
+        $downloadPath = Join-Path $desktopPath "App-$dateLabel"
+    } else {
+        $downloadPath = $appPath
+    }
+    New-Item -ItemType Directory -Path $downloadPath -Force | Out-Null
+
+    $initialBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
+        Measure-Object -Property Length -Sum).Sum
+    if (-not $initialBytes) {
+        $initialBytes = 0
+    }
+    $installerSizes = @($selection | ForEach-Object {
+        $source = if ($_.Source) { $_.Source } else { 'winget' }
+        Get-InstallerSizeBytes -Application $_ -Source $source
+    })
+    $totalBytes = ($installerSizes | Measure-Object -Sum).Sum
+    if (-not $totalBytes) {
+        $totalBytes = 0
+    }
+    $completedCount = 0
+
     foreach ($application in $selection) {
         $source = if ($application.Source) { $application.Source } else { 'winget' }
-        Write-Host ("`nYükleniyor: {0} ({1}; kaynak: {2})" -f $application.Name, $application.Id, $source) -ForegroundColor Cyan
+        Write-Host ''
         if ($source -eq 'msstore') {
-            & winget install --id $application.Id --source msstore --accept-source-agreements
+            & winget download --id $application.Id --source msstore --download-directory $downloadPath --accept-source-agreements --accept-package-agreements 2>&1 |
+                ForEach-Object {
+                    $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
+                        Measure-Object -Property Length -Sum).Sum
+                    Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                }
         } else {
-            & winget install $application.Id --exact --accept-source-agreements
+            & winget download --id $application.Id --exact --download-directory $downloadPath --accept-source-agreements --accept-package-agreements 2>&1 |
+                ForEach-Object {
+                    $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
+                        Measure-Object -Property Length -Sum).Sum
+                    Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                }
         }
         if ($LASTEXITCODE -ne 0) {
-            Write-Host ("BAŞARISIZ: {0}. Paket kimliği bulunamadı veya yükleme başarısız oldu." -f $application.Name) -ForegroundColor Red
+            Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
         } else {
-            Write-Host ("Tamamlandı: {0}" -f $application.Name) -ForegroundColor Green
+            $completedCount++
+            $currentBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
+                Measure-Object -Property Length -Sum).Sum
+            Show-DownloadProgress -DownloadedBytes ([math]::Max(0, $currentBytes - $initialBytes)) -TotalBytes $totalBytes -CompletedCount $completedCount -TotalCount $selection.Count
         }
     }
+    Write-Host ''
     Read-Host "`nAna menüye dönmek için Enter"
 }
 
@@ -94,11 +202,11 @@ Test-Winget
 while ($true) {
     Clear-Host
     Write-Host 'WinTool PS' -ForegroundColor Cyan
-    Write-Host '1) Uygulama yükle'
+    Write-Host '1) Uygulama indir'
     Write-Host '2) Hash al'
     Write-Host '0) Çıkış'
     switch ((Read-Host 'Seçiminiz').Trim()) {
-        '1' { Install-Applications }
+        '1' { Download-Applications }
         '2' { Get-Hashes }
         '0' { return }
         default { Write-Host 'Geçersiz seçim.' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
