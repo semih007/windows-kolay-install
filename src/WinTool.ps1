@@ -208,9 +208,26 @@ function Start-WingetDownload {
     } else {
         @('download', '--id', $Application.Id, '--exact', '--download-directory', $downloadDirArg, '--accept-source-agreements', '--accept-package-agreements')
     }
-    # Start winget without opening a new visible window when possible and capture output
-    $process = Start-Process -FilePath 'winget' -ArgumentList $arguments `
-        -RedirectStandardOutput $outputPath -RedirectStandardError $errorPath -PassThru -NoNewWindow -WindowStyle Hidden
+
+    # Try to start winget using Start-Process (non-blocking) but fall back to synchronous call if that fails
+    try {
+        $process = Start-Process -FilePath 'winget' -ArgumentList $arguments `
+            -RedirectStandardOutput $outputPath -RedirectStandardError $errorPath -PassThru -NoNewWindow -WindowStyle Hidden -ErrorAction Stop
+    } catch {
+        # Fallback: run winget synchronously with the call operator and capture output to files
+        try {
+            & winget @arguments > $outputPath 2> $errorPath
+            $lastExit = $LASTEXITCODE
+        } catch {
+            # If even the direct call fails, record a non-zero exit
+            $lastExit = 1
+        }
+        # Create a lightweight process-like object compatible with the caller
+        $process = New-Object PSObject
+        $process | Add-Member -MemberType NoteProperty -Name HasExited -Value $true
+        $process | Add-Member -MemberType NoteProperty -Name ExitCode -Value $lastExit
+    }
+
     return [pscustomobject]@{
         Process = $process
         OutputPath = $outputPath
