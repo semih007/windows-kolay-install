@@ -269,6 +269,7 @@ function Download-Applications {
         $source = if ($application.Source) { $application.Source } else { 'winget' }
         $applicationTotalBytes = [long]$installerSizes[$index]
         $applicationStartBytes = Get-DirectoryFileBytes -Path $downloadPath
+        Write-SessionLog "$($application.Name) indirme basladi."
         $download = Start-WingetDownload -Application $application -DownloadPath $downloadPath -Source $source
         while (-not $download.Process.HasExited) {
             $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
