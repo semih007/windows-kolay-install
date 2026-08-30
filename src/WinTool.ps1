@@ -363,7 +363,9 @@ function Download-Applications {
                 }
             } else {
                 if ($applicationBytes -le 0) {
-                    Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
+                    # Treat zero-bytes as failure for msstore downloads (no artifact produced)
+                    Write-Host "`nİndirme başarısız oldu (hiç dosya oluşmadı)." -ForegroundColor Red
+                    Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. İşlem başarısız sayıldı." 
                     if (Test-Path -LiteralPath $download.ErrorPath) {
                         $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
                         if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
@@ -372,13 +374,14 @@ function Download-Applications {
                         $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
                         if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
                     }
+                    # Do not increment completedCount; mark as failed
+                } else {
+                    $completedCount++
+                    Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                        -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                        -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                    Write-SessionLog "$($application.Name) indirildi."
                 }
-
-                $completedCount++
-                Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
-                    -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
-                    -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
-                Write-SessionLog "$($application.Name) indirildi."
             }
 
             Remove-Item -LiteralPath $download.OutputPath, $download.ErrorPath -Force -ErrorAction SilentlyContinue
