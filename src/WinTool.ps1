@@ -316,34 +316,43 @@ function Download-Applications {
         $applicationStartBytes = Get-DirectoryFileBytes -Path $downloadPath
         Write-SessionLog "$($application.Name) indirme basladi."
         $download = Start-WingetDownload -Application $application -DownloadPath $downloadPath -Source $source
-        while (-not $download.Process.HasExited) {
+
+        if ($source -eq 'msstore') {
+            # msstore downloads are launched in an interactive window by Start-WingetDownload.
+            # Wait for output or error file to appear and stabilize (best-effort) before proceeding.
+            $waitStart = Get-Date
+            $timeoutSec = 600
+            while (-not (Test-Path -LiteralPath $download.OutputPath -PathType Leaf -ErrorAction SilentlyContinue) -and -not (Test-Path -LiteralPath $download.ErrorPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 1
+                if ((Get-Date) -gt $waitStart.AddSeconds($timeoutSec)) { break }
+            }
+
+            # Wait for files to stop changing (small stabilization window)
+            $stableStart = Get-Date
+            $prevLen = -1
+            while (((Test-Path -LiteralPath $download.OutputPath -ErrorAction SilentlyContinue) -or (Test-Path -LiteralPath $download.ErrorPath -ErrorAction SilentlyContinue)) -and ((Get-Date) -lt $waitStart.AddSeconds($timeoutSec))) {
+                $len = 0
+                if (Test-Path -LiteralPath $download.OutputPath -ErrorAction SilentlyContinue) { $len += (Get-Item -LiteralPath $download.OutputPath -ErrorAction SilentlyContinue).Length }
+                if (Test-Path -LiteralPath $download.ErrorPath -ErrorAction SilentlyContinue) { $len += (Get-Item -LiteralPath $download.ErrorPath -ErrorAction SilentlyContinue).Length }
+                if ($len -ne $prevLen) { $prevLen = $len; $stableStart = Get-Date } else { if (((Get-Date) - $stableStart).TotalSeconds -ge 2) { break } }
+                Start-Sleep -Milliseconds 500
+            }
+
+            # After stabilization, compute bytes and decide
             $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
             $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
             $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
-            Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
-                -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
-                -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
-            Start-Sleep -Milliseconds 250
-        }
-        $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
-        $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
-        $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
-        if ($download.Process.ExitCode -ne 0) {
-            Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
-            Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $($download.Process.ExitCode))."
-            # Log winget output for debugging
+
+            # Determine exit code from error file presence/size
+            $exitCode = 0
             if (Test-Path -LiteralPath $download.ErrorPath) {
-                $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                try { $errLen = (Get-Item -LiteralPath $download.ErrorPath -ErrorAction SilentlyContinue).Length } catch { $errLen = 0 }
+                if ($errLen -gt 0) { $exitCode = 1 }
             }
-            if (Test-Path -LiteralPath $download.OutputPath) {
-                $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
-            }
-        } else {
-            # If process reported success but no bytes were written, capture winget output for diagnosis
-            if ($applicationBytes -le 0) {
-                Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
+
+            if ($exitCode -ne 0) {
+                Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
+                Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $exitCode)."
                 if (Test-Path -LiteralPath $download.ErrorPath) {
                     $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
                     if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
@@ -352,16 +361,66 @@ function Download-Applications {
                     $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
                     if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
                 }
+            } else {
+                if ($applicationBytes -le 0) {
+                    Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
+                    if (Test-Path -LiteralPath $download.ErrorPath) {
+                        $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                        if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                    }
+                    if (Test-Path -LiteralPath $download.OutputPath) {
+                        $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                        if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                    }
+                }
+
+                $completedCount++
+                Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                    -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                    -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                Write-SessionLog "$($application.Name) indirildi."
             }
 
-            $completedCount++
-            Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
-                -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
-                -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
-            Write-SessionLog "$($application.Name) indirildi."
-        }
-        Remove-Item -LiteralPath $download.OutputPath, $download.ErrorPath -Force -ErrorAction SilentlyContinue
-    }
+            Remove-Item -LiteralPath $download.OutputPath, $download.ErrorPath -Force -ErrorAction SilentlyContinue
+
+        } else {
+            while (-not $download.Process.HasExited) {
+                $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
+                $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
+                $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
+                Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                    -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                    -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                Start-Sleep -Milliseconds 250
+            }
+            $currentBytes = Get-DirectoryFileBytes -Path $downloadPath
+            $downloadedBytes = [math]::Max(0, $currentBytes - $initialBytes)
+            $applicationBytes = [math]::Max(0, $currentBytes - $applicationStartBytes)
+            if ($download.Process.ExitCode -ne 0) {
+                Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
+                Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $($download.Process.ExitCode))."
+            } else {
+                # If process reported success but no bytes were written, capture winget output for diagnosis
+                if ($applicationBytes -le 0) {
+                    Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
+                    if (Test-Path -LiteralPath $download.ErrorPath) {
+                        $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                        if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                    }
+                    if (Test-Path -LiteralPath $download.OutputPath) {
+                        $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                        if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                    }
+                }
+
+                $completedCount++
+                Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
+                    -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
+                    -ApplicationTotalBytes $applicationTotalBytes -CompletedCount $completedCount -TotalCount $selection.Count
+                Write-SessionLog "$($application.Name) indirildi."
+            }
+            Remove-Item -LiteralPath $download.OutputPath, $download.ErrorPath -Force -ErrorAction SilentlyContinue
+        }    }
     Write-Progress -Id 2 -Activity 'İndirme tamamlandı' -Completed
     Write-Progress -Id 1 -Activity 'Toplam indirme' -Completed
     $finalBytes = (Get-ChildItem -LiteralPath $downloadPath -File -ErrorAction SilentlyContinue |
