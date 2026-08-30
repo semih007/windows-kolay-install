@@ -219,12 +219,10 @@ function Start-WingetDownload {
             $scriptContent = @"
 Write-Host "WinTool: msstore paket indirme penceresi"
 Write-Host "-------------------------------------------------------"
-Write-Host "Paket bilgileri (winget show):"
-
-# Show package metadata and license text so user can read and decide
-winget show --id $($Application.Id) --source msstore --exact
-
-Write-Host "\nEğer indirmeyi onaylıyorsanız 'E' girin, iptal etmek için başka bir tuşa basın."
+Write-Host "Paket: $($Application.Name) ($($Application.Id))"
+Write-Host "Hedef klasör: $downloadDirArg"
+Write-Host ""
+Write-Host "İndirmeyi onaylıyor musunuz? 'E' (Evet) / herhangi başka tuş (Hayır)"
 $ans = Read-Host 'Onay (E/H)'
 if ($ans -eq 'E' -or $ans -eq 'e') {
     Write-Host "İndirme başlatılıyor..."
