@@ -211,12 +211,31 @@ function Start-WingetDownload {
 
     # For msstore packages, run winget synchronously in the current console so any interactive UI (Store prompts) can appear
     if ($Source -eq 'msstore') {
+        # Run msstore downloads in an interactive, non-elevated user context using Explorer's ShellExecute
+        # so Store UI / authentication prompts can appear. Redirect output to temp files and wait for them.
         try {
-            & winget @arguments > $outputPath 2> $errorPath
-            $lastExit = $LASTEXITCODE
+            $psCommand = "winget " + ($arguments -join ' ') + " > `"$outputPath`" 2> `"$errorPath`""
+            $shell = New-Object -ComObject Shell.Application
+            $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -Command `$"$psCommand`$`"", '', 'open', 1) | Out-Null
+
+            # Wait for the output or error file to appear (timeout after 600s)
+            $waitStart = Get-Date
+            $timeoutSec = 600
+            while (-not (Test-Path -LiteralPath $outputPath -PathType Leaf -ErrorAction SilentlyContinue) -and -not (Test-Path -LiteralPath $errorPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 1
+                if ((Get-Date) -gt $waitStart.AddSeconds($timeoutSec)) { break }
+            }
+
+            # Determine a best-effort exit code: if error file exists and non-empty, mark non-zero
+            $lastExit = 0
+            if (Test-Path -LiteralPath $errorPath) {
+                $errLen = (Get-Item -LiteralPath $errorPath -ErrorAction SilentlyContinue).Length
+                if ($errLen -gt 0) { $lastExit = 1 }
+            }
         } catch {
             $lastExit = 1
         }
+
         $process = New-Object PSObject
         $process | Add-Member -MemberType NoteProperty -Name HasExited -Value $true
         $process | Add-Member -MemberType NoteProperty -Name ExitCode -Value $lastExit
