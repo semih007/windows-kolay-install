@@ -214,9 +214,19 @@ function Start-WingetDownload {
         # Run msstore downloads in an interactive, non-elevated user context using Explorer's ShellExecute
         # so Store UI / authentication prompts can appear. Redirect output to temp files and wait for them.
         try {
-            $psCommand = "winget " + ($arguments -join ' ') + " > `"$outputPath`" 2> `"$errorPath`""
+            # Create a small launcher ps1 that runs the winget command and redirects output to the temp files.
+            $launcherPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-launch-" + [guid]::NewGuid().ToString() + '.ps1')
+            $quotedArgs = @()
+            foreach ($a in $arguments) {
+                # Ensure arguments with spaces are quoted
+                if ($a -match '\s') { $quotedArgs += '"' + $a.Replace('"','\"') + '"' } else { $quotedArgs += $a }
+            }
+            $scriptContent = "& winget " + ($quotedArgs -join ' ') + " > `"$outputPath`" 2> `"$errorPath`""
+            Set-Content -LiteralPath $launcherPath -Value $scriptContent -Encoding UTF8
+
             $shell = New-Object -ComObject Shell.Application
-            $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -Command `$"$psCommand`$`"", '', 'open', 1) | Out-Null
+            # Launch the launcher script in a new visible PowerShell window so Store UI can appear
+            $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -File `"$launcherPath`"", '', 'open', 1) | Out-Null
 
             # Wait for the output or error file to appear (timeout after 600s)
             $waitStart = Get-Date
