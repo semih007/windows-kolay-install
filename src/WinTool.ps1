@@ -27,6 +27,9 @@ if (-not $isAdministrator) {
     exit
 }
 
+# Keep a single log file (WinTool.txt) for both download and hash logs as requested.
+# Do not rotate or archive automatically here; the user asked to retain all logs in one file.
+# If the file grows too large in future, add manual rotation later behind a config option.
 Write-SessionLog 'WinTool baslatildi.'
 
 $configPath = Join-Path $PSScriptRoot 'Config.ps1'
@@ -216,33 +219,32 @@ function Start-WingetDownload {
         try {
             # Create a small interactive launcher ps1 that shows package info and asks the user to confirm before running winget download.
             $launcherPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-launch-" + [guid]::NewGuid().ToString() + '.ps1')
-            $scriptContent = @"
-Write-Host "WinTool: msstore paket indirme penceresi"
-Write-Host "-------------------------------------------------------"
-Write-Host "Paket: $($Application.Name) ($($Application.Id))"
-Write-Host "Hedef klasör: $downloadDirArg"
-Write-Host ""
-Write-Host "Paket bilgileri ve lisans metni aşağıda görüntülenecektir. Kaydırmak için PageUp/PageDown veya fareyi kullanabilirsiniz."
-Write-Host "Lisansı okuduktan sonra en alta inip onaylayın."
-Write-Host ""
-# Show package metadata and license text for user to review
-winget show --id $($Application.Id) --source msstore --exact
-Write-Host ""
-Write-Host "İndirmeyi onaylıyor musunuz? 'E' (Evet) / herhangi başka tuş (Hayır)"
-$ans = Read-Host 'Onay (E/H)'
-if ($ans -eq 'E' -or $ans -eq 'e') {
-    Write-Host "İndirme başlatılıyor..."
-    & winget download --id $($Application.Id) --source msstore --skip-license --download-directory `"$downloadDirArg`" > `"$outputPath`" 2> `"$errorPath`"
-    Write-Host "İndirme komutu tamamlandı. Çıktılar temp dosyalara yönlendirildi. Bu pencereyi kapatabilirsiniz."
-} else {
-    Write-Host "Kullanıcı indirmeyi onaylamadı. Pencereyi kapatın ve WinTool devam edecektir."
-}
-"@
-            # Use UTF-16 (Unicode) encoding so PowerShell on Windows interprets non-ASCII characters correctly
-            Set-Content -LiteralPath $launcherPath -Value $scriptContent -Encoding Unicode
-
-            $shell = New-Object -ComObject Shell.Application
+            # Build launcher script lines explicitly to avoid variable expansion/encoding issues
+            $launcherLines = @(
+                'Write-Host "WinTool: msstore paket indirme penceresi"',
+                'Write-Host "-------------------------------------------------------"',
+                "Write-Host \"Paket: $($Application.Name) ($($Application.Id))\"",
+                "Write-Host \"Hedef klasör: $downloadDirArg\"",
+                'Write-Host ""',
+                'Write-Host "Paket bilgileri ve lisans metni aşağıda görüntülenecektir. Kaydırmak için PageUp/PageDown veya fareyi kullanabilirsiniz."',
+                'Write-Host "Lisansı okuduktan sonra en alta inip onaylayın."',
+                'Write-Host ""',
+                "winget show --id $($Application.Id) --source msstore --exact",
+                'Write-Host ""',
+                'Write-Host "İndirmeyi onaylıyor musunuz? \'E\' (Evet) / herhangi başka tuş (Hayır)"',
+                '$ans = Read-Host ''Onay (E/H)''',
+                'if ($ans -eq ''E'' -or $ans -eq ''e'') {',
+                '    Write-Host "İndirme başlatılıyor..."',
+                "    & winget download --id $($Application.Id) --source msstore --skip-license --download-directory `"$downloadDirArg`" > `"$outputPath`" 2> `"$errorPath`"",
+                '    Write-Host "İndirme komutu tamamlandı. Çıktılar temp dosyalara yönlendirildi. Bu pencereyi kapatabilirsiniz."',
+                '} else {',
+                '    Write-Host "Kullanıcı indirmeyi onaylamadı. Pencereyi kapatın ve WinTool devam edecektir."',
+                '}'
+            )
+            # Write launcher using Out-File with Unicode encoding
+            $launcherLines | Out-File -FilePath $launcherPath -Encoding Unicode -Width 4096
             # Launch the launcher script in a new visible PowerShell window and keep it open so user can interact
+            $shell = New-Object -ComObject Shell.Application
             $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$launcherPath`"", '', 'open', 1) | Out-Null
 
             # Wait for the output or error file to appear (timeout after 600s)
