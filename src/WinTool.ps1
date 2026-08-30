@@ -201,14 +201,16 @@ function Start-WingetDownload {
 
     $outputPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-" + [guid]::NewGuid().ToString() + '.out')
     $errorPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-" + [guid]::NewGuid().ToString() + '.err')
-    $quotedDownloadPath = '"' + $DownloadPath.Replace('"', '\"') + '"'
+    # Do not add manual quoting to the download path; pass it as a plain argument
+    $downloadDirArg = $DownloadPath
     $arguments = if ($Source -eq 'msstore') {
-        @('download', '--id', $Application.Id, '--source', 'msstore', '--skip-license', '--download-directory', $quotedDownloadPath)
+        @('download', '--id', $Application.Id, '--source', 'msstore', '--skip-license', '--download-directory', $downloadDirArg)
     } else {
-        @('download', '--id', $Application.Id, '--exact', '--download-directory', $quotedDownloadPath, '--accept-source-agreements', '--accept-package-agreements')
+        @('download', '--id', $Application.Id, '--exact', '--download-directory', $downloadDirArg, '--accept-source-agreements', '--accept-package-agreements')
     }
+    # Start winget without opening a new visible window when possible and capture output
     $process = Start-Process -FilePath 'winget' -ArgumentList $arguments `
-        -RedirectStandardOutput $outputPath -RedirectStandardError $errorPath -PassThru
+        -RedirectStandardOutput $outputPath -RedirectStandardError $errorPath -PassThru -NoNewWindow -WindowStyle Hidden
     return [pscustomobject]@{
         Process = $process
         OutputPath = $outputPath
