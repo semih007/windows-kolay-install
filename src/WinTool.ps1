@@ -214,19 +214,31 @@ function Start-WingetDownload {
         # Run msstore downloads in an interactive, non-elevated user context using Explorer's ShellExecute
         # so Store UI / authentication prompts can appear. Redirect output to temp files and wait for them.
         try {
-            # Create a small launcher ps1 that runs the winget command and redirects output to the temp files.
+            # Create a small interactive launcher ps1 that shows package info and asks the user to confirm before running winget download.
             $launcherPath = Join-Path ([IO.Path]::GetTempPath()) ("wintool-launch-" + [guid]::NewGuid().ToString() + '.ps1')
-            $quotedArgs = @()
-            foreach ($a in $arguments) {
-                # Ensure arguments with spaces are quoted
-                if ($a -match '\s') { $quotedArgs += '"' + $a.Replace('"','\"') + '"' } else { $quotedArgs += $a }
-            }
-            $scriptContent = "& winget " + ($quotedArgs -join ' ') + " > `"$outputPath`" 2> `"$errorPath`""
+            $scriptContent = @"
+Write-Host "WinTool: msstore paket indirme penceresi"
+Write-Host "-------------------------------------------------------"
+Write-Host "Paket bilgileri (winget show):"
+
+# Show package metadata and license text so user can read and decide
+winget show --id $($Application.Id) --source msstore --exact
+
+Write-Host "\nEğer indirmeyi onaylıyorsanız 'E' girin, iptal etmek için başka bir tuşa basın."
+$ans = Read-Host 'Onay (E/H)'
+if ($ans -eq 'E' -or $ans -eq 'e') {
+    Write-Host "İndirme başlatılıyor..."
+    & winget download --id $($Application.Id) --source msstore --skip-license --download-directory `"$downloadDirArg`" > `"$outputPath`" 2> `"$errorPath`"
+    Write-Host "İndirme komutu tamamlandı. Çıktılar temp dosyalara yönlendirildi. Bu pencereyi kapatabilirsiniz."
+} else {
+    Write-Host "Kullanıcı indirmeyi onaylamadı. Pencereyi kapatın ve WinTool devam edecektir."
+}
+"@
             Set-Content -LiteralPath $launcherPath -Value $scriptContent -Encoding UTF8
 
             $shell = New-Object -ComObject Shell.Application
-            # Launch the launcher script in a new visible PowerShell window so Store UI can appear
-            $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -File `"$launcherPath`"", '', 'open', 1) | Out-Null
+            # Launch the launcher script in a new visible PowerShell window and keep it open so user can interact
+            $shell.ShellExecute('powershell.exe', "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$launcherPath`"", '', 'open', 1) | Out-Null
 
             # Wait for the output or error file to appear (timeout after 600s)
             $waitStart = Get-Date
@@ -354,12 +366,12 @@ function Download-Applications {
                 Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
                 Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $exitCode)."
                 if (Test-Path -LiteralPath $download.ErrorPath) {
-                    $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                    if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                    $errLine = (Get-Content -LiteralPath $download.ErrorPath -TotalCount 10 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                    if ($errLine) { Write-SessionLog "$($application.Name) winget stderr summary: $errLine" }
                 }
                 if (Test-Path -LiteralPath $download.OutputPath) {
-                    $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                    if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                    $outLine = (Get-Content -LiteralPath $download.OutputPath -TotalCount 20 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                    if ($outLine) { Write-SessionLog "$($application.Name) winget message: $outLine" }
                 }
             } else {
                 if ($applicationBytes -le 0) {
@@ -367,12 +379,12 @@ function Download-Applications {
                     Write-Host "`nİndirme başarısız oldu (hiç dosya oluşmadı)." -ForegroundColor Red
                     Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. İşlem başarısız sayıldı." 
                     if (Test-Path -LiteralPath $download.ErrorPath) {
-                        $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                        if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                        $errLine = (Get-Content -LiteralPath $download.ErrorPath -TotalCount 10 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                        if ($errLine) { Write-SessionLog "$($application.Name) winget stderr summary: $errLine" }
                     }
                     if (Test-Path -LiteralPath $download.OutputPath) {
-                        $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                        if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                        $outLine = (Get-Content -LiteralPath $download.OutputPath -TotalCount 20 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                        if ($outLine) { Write-SessionLog "$($application.Name) winget message: $outLine" }
                     }
                     # Do not increment completedCount; mark as failed
                 } else {
@@ -407,12 +419,12 @@ function Download-Applications {
                 if ($applicationBytes -le 0) {
                     Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
                     if (Test-Path -LiteralPath $download.ErrorPath) {
-                        $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                        if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                        $errLine = (Get-Content -LiteralPath $download.ErrorPath -TotalCount 10 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                        if ($errLine) { Write-SessionLog "$($application.Name) winget stderr summary: $errLine" }
                     }
                     if (Test-Path -LiteralPath $download.OutputPath) {
-                        $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
-                        if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                        $outLine = (Get-Content -LiteralPath $download.OutputPath -TotalCount 20 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1)
+                        if ($outLine) { Write-SessionLog "$($application.Name) winget message: $outLine" }
                     }
                 }
 
