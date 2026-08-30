@@ -348,8 +348,17 @@ function Get-Hashes {
     }
     $hashes | Format-Table -AutoSize
 
+    # Offer to save computed hashes to the session log
+    $saveChoice = (Read-Host 'Hesaplanan hashleri log dosyasına kaydetmek istiyor musunuz? (E/H)').Trim()
+    if ($saveChoice -in @('E','e')) {
+        foreach ($h in $hashes) {
+            Write-SessionLog "Dosya: $path - $($h.Algoritma) hesaplanan hash = $($h.Hash)"
+        }
+    }
+
     $compareChoice = (Read-Host 'Hash karşılaştırması yapmak istiyor musunuz? (E/H)').Trim()
     if ($compareChoice -notin @('E', 'e')) {
+        Read-Host 'Ana menüye dönmek için Enter'
         return
     }
 
@@ -381,6 +390,14 @@ function Get-Hashes {
         Write-Host "Beklenen: $expectedHash"
         Write-Host "Dosya:     $actualHash"
     }
+
+    # Offer to log the comparison result to the session log in the requested format
+    $logCompare = (Read-Host 'Karşılaştırma sonucunu log dosyasına kaydetmek istiyor musunuz? (E/H)').Trim()
+    if ($logCompare -in @('E','e')) {
+        # Write-SessionLog already prefixes a timestamp in yyyy-MM-dd HH:mm:ss format
+        Write-SessionLog "$algorithm karşılaştırması - Dosya: $path; verilen hash = $expectedHash; hesaplanan hash = $actualHash"
+    }
+
     Read-Host 'Ana menüye dönmek için Enter'
 }
 
