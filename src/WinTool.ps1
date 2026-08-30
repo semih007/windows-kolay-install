@@ -12,7 +12,7 @@ function Write-SessionLog {
     )
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    Add-Content -LiteralPath $logPath -Value "$timestamp - $Message" -Encoding UTF8
+    Add-Content -LiteralPath $logPath -Value "$timestamp - $Message" -Encoding Unicode
 }
 
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
