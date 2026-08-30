@@ -238,7 +238,8 @@ if ($ans -eq 'E' -or $ans -eq 'e') {
     Write-Host "Kullanıcı indirmeyi onaylamadı. Pencereyi kapatın ve WinTool devam edecektir."
 }
 "@
-            Set-Content -LiteralPath $launcherPath -Value $scriptContent -Encoding UTF8
+            # Use UTF-16 (Unicode) encoding so PowerShell on Windows interprets non-ASCII characters correctly
+            Set-Content -LiteralPath $launcherPath -Value $scriptContent -Encoding Unicode
 
             $shell = New-Object -ComObject Shell.Application
             # Launch the launcher script in a new visible PowerShell window and keep it open so user can interact
