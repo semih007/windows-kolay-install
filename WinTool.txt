@@ -1,0 +1,78 @@
+Pzt 31.08.2026  1:37:07,86 - WinTool penceresi kapandi veya betik sonlandi.
+2026-08-31 01:37:08 - WinTool baslatildi.
+2026-08-31 01:37:11 - Seçim yapıldı. Seçilen adet: 1. Uygulamalar: 7-Zip
+2026-08-31 01:37:15 - 7-Zip için winget paket boyutu alınamadı; toplam ilerleme yaklaşık olabilir.
+2026-08-31 01:37:15 - 7-Zip indirme basladi.
+2026-08-31 01:37:18 - 7-Zip indirildi.
+2026-08-31 01:37:20 - İndirme tamamlandı. Toplam indirilen boyut: 1.9 MB.
+2026-08-31 01:37:29 - Seçim yapıldı. Seçilen adet: 1. Uygulamalar: Revo Uninstaller (Microsoft Store)
+2026-08-31 01:37:30 - Revo Uninstaller (Microsoft Store) için winget paket boyutu alınamadı; toplam ilerleme yaklaşık olabilir.
+2026-08-31 01:37:30 - Revo Uninstaller (Microsoft Store) indirme basladi.
+2026-08-31 01:37:33 - Uyarı: Revo Uninstaller (Microsoft Store) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. İşlem başarısız sayıldı.
+2026-08-31 01:37:33 - Revo Uninstaller (Microsoft Store) winget stdout:\nFound Revo Uninstaller [XPFFVD4CMXN8VN] Version 2.6.5
+This application is licensed to you by its owner.
+Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Agreements for Revo Uninstaller [XPFFVD4CMXN8VN] Version 2.6.5
+Version: 2.6.5
+Publisher: VS Revo Group Ltd.
+Publisher Url: https://www.revouninstaller.com/
+Publisher Support Url: https://www.revouninstaller.com/support/#contact
+License: https://www.revouninstaller.com/revo-uninstaller-privacy-policy/
+REVO UNINSTALLER LICENSE AGREEMENT AND COPYRIGHT
+========================
+IMPORTANT - READ CAREFULLY:
+This license agreement is a legal agreement between you (either personal or corporate) and VS Revo Group Ltd., the vendor of the software product ÔÇ£Revo UninstallerÔÇØ".
+
+"the Vendor" means the developer of the  "Revo Uninstaller" software product, VS Revo Group Ltd.
+
+YOU AGREE TO BE BOUND BY THE TERMS OF THIS LICENSE AGREEMENT AND THE LIMITATIONS OF YOUR LICENSE BY INSTALLING, COPYING, DISTRIBUTING OR OTHERWISE USING REVO UNINSTALLER. IF YOU DO NOT AGREE, DO NOT INSTALL, DISTRIBUTE OR USE REVO UNINSATALLER IN ANY WAYS.
+
+Revo Uninstaller is FREEWARE. You can freely use this software and distribute copies of the ORIGINAL DISTRIBUTION FILE as long as NO ALTERATIONS are made to the file and its contents, no charge is raised and that this license agreement is not violated in any ways. Any other way of distributing this software is prohibited.
+
+This is not public domain software. The software is owned by the author and protected by copyright law. The Software is licensed, not sold, to You for Your use only under the terms of this Agreement, and VS Revo Group Ltd. reserves all rights not expressly granted to You. 
+
+You are NOT allowed to:
+
+1. Modify, reverse engineer, decompile, disassemble or otherwise attempt to reconstruct or discover the source code, or any parts of it from the binaries of Revo Uninstaller.
+
+2. Remove any product identification, copyright, proprietary notices or labels from Revo Uninstaller.
+
+3. Distribute Revo Uninstaller in any other form than in the official distribution packages without a written permission from the Vendor.
+
+4. Use, run, copy, distribute or store Revo Uninstaller in your computer if this license agreement is violated in any ways.
+
+
+THE APPLICATION AND ANY RELATED DOCUMENTATION IS PROVIDED "AS IS" WITHOUT ANY WARRANTIES. AND THAT THE VENDOR DOES NOT WARRANT THAT REVO UNINSTALLER WILL RUN UNINTERRUPTED OR ERROR FREE NOR THAT REVO UNINSTALLER WILL OPERATE WITH HARDWARE AND/OR SOFTWARE NOT PROVIDED BY THE VENDOR, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE. THE ENTIRE RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE REMAINS WITH YOU
+
+The Agreement becomes effective when You agree to the terms and conditions of this Agreement by opening, installing, using, accessing or manipulating the Software (the " Effective Date "), and this Agreement  will terminate immediately upon notice to You if You materially breach any term or condition of this Agreement. You agree upon termination to promptly destroy the Software and all copies thereof.
+
+
+NOTE: REVO UNINSTALLER MAY CONNECT BY USERÔÇÖS REQUEST THROUGH THE INTERNET TO WWW.REVOUNINSTALLER.COM TO CHECK FOR UPDATES. DURING THIS PROCESS IT WILL DOWNLOAD A SMALL FILE THAT CONTAINS THE NUMBER OF THE LATEST VERSION AVAILABLE ON THE INTERNET TO CHECK IF THE VERSION AVAILABLE ON THE INTERNET IS NEWER THAN THE VERSION INSTALLED ON THE USER'S COMPUTER. REVO UNINSTALLER WILL NOT SEND ANY DATA FROM THE USER'S COMPUTER. YOU CAN DISABLE THIS FEATURE FROM THE SETTINGS SCREEN.
+
+Copyright VS Revo Group Ltd. All rights reserved.
+http://www.vsrevogroup.com
+
+Privacy Url: https://www.revouninstaller.com/revo-uninstaller-privacy-policy/
+Copyright: ms-windows-store://pdp/?ProductId=XPFFVD4CMXN8VN
+Agreements:
+  Category: Utilities & tools
+  Pricing: Freemium
+  Free Trial: No
+  Terms of Transaction: https://aka.ms/microsoft-store-terms-of-transaction
+  Seizure Warning: https://aka.ms/microsoft-store-seizure-warning
+  Store License Terms: https://aka.ms/microsoft-store-license
+
+The publisher requires that you view the above information and accept the agreements before installing.
+Do you agree to the terms?
+
+2026-08-31 01:37:33 - İndirme tamamlandı. Toplam indirilen boyut: 0 MB.
+Pzt 31.08.2026  1:37:51,28 - WinTool penceresi kapandi veya betik sonlandi.
+2026-08-31 01:37:51 - WinTool baslatildi.
+2026-08-31 01:38:00 - Seçim yapıldı. Seçilen adet: 2. Uygulamalar: 7-Zip, CPU-Z
+2026-08-31 01:38:01 - 7-Zip için winget paket boyutu alınamadı; toplam ilerleme yaklaşık olabilir.
+2026-08-31 01:38:02 - CPU-Z için winget paket boyutu alınamadı; toplam ilerleme yaklaşık olabilir.
+2026-08-31 01:38:02 - 7-Zip indirme basladi.
+2026-08-31 01:38:05 - 7-Zip indirildi.
+2026-08-31 01:38:05 - CPU-Z indirme basladi.
+2026-08-31 01:38:08 - CPU-Z indirildi.
+2026-08-31 01:38:08 - İndirme tamamlandı. Toplam indirilen boyut: 6.5 MB.
