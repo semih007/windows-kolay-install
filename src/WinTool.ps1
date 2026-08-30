@@ -222,6 +222,12 @@ Write-Host "-------------------------------------------------------"
 Write-Host "Paket: $($Application.Name) ($($Application.Id))"
 Write-Host "Hedef klasör: $downloadDirArg"
 Write-Host ""
+Write-Host "Paket bilgileri ve lisans metni aşağıda görüntülenecektir. Kaydırmak için PageUp/PageDown veya fareyi kullanabilirsiniz."
+Write-Host "Lisansı okuduktan sonra en alta inip onaylayın."
+Write-Host ""
+# Show package metadata and license text for user to review
+winget show --id $($Application.Id) --source msstore --exact
+Write-Host ""
 Write-Host "İndirmeyi onaylıyor musunuz? 'E' (Evet) / herhangi başka tuş (Hayır)"
 $ans = Read-Host 'Onay (E/H)'
 if ($ans -eq 'E' -or $ans -eq 'e') {
