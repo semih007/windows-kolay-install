@@ -238,6 +238,9 @@ function Start-WingetDownload {
 function Download-Applications {
     Show-AppList
     $selection = Read-AppSelection
+    # Ensure selection is always an array (coerce single object into array)
+    $selection = @($selection)
+    Write-SessionLog "Seçim yapıldı. Seçilen adet: $($selection.Count). Uygulamalar: $($selection | ForEach-Object { $_.Name } -join ', ')"
     if ($selection.Count -eq 0) {
         return
     }
