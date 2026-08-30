@@ -289,7 +289,29 @@ function Download-Applications {
         if ($download.Process.ExitCode -ne 0) {
             Write-Host "`nİndirme başarısız oldu." -ForegroundColor Red
             Write-SessionLog "$($application.Name) indirme başarısız oldu (kod: $($download.Process.ExitCode))."
+            # Log winget output for debugging
+            if (Test-Path -LiteralPath $download.ErrorPath) {
+                $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+            }
+            if (Test-Path -LiteralPath $download.OutputPath) {
+                $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+            }
         } else {
+            # If process reported success but no bytes were written, capture winget output for diagnosis
+            if ($applicationBytes -le 0) {
+                Write-SessionLog "Uyarı: $($application.Name) için işlem çıkış kodu 0 ancak indirilen dosya boyutu 0. Çıktılar kaydediliyor."
+                if (Test-Path -LiteralPath $download.ErrorPath) {
+                    $errPreview = Get-Content -LiteralPath $download.ErrorPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                    if ($errPreview) { Write-SessionLog "$($application.Name) winget stderr:\n$errPreview" }
+                }
+                if (Test-Path -LiteralPath $download.OutputPath) {
+                    $outPreview = Get-Content -LiteralPath $download.OutputPath -TotalCount 200 -ErrorAction SilentlyContinue | Out-String
+                    if ($outPreview) { Write-SessionLog "$($application.Name) winget stdout:\n$outPreview" }
+                }
+            }
+
             $completedCount++
             Show-DownloadProgress -DownloadedBytes $downloadedBytes -TotalBytes $totalBytes `
                 -ApplicationName $application.Name -ApplicationBytes $applicationBytes `
